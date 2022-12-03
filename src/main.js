@@ -98,16 +98,21 @@ class PokemonQueryComponent extends LitElement {
           // Make the API request if the data is not already stored
           const pokemonData = await this._fetchPokemonData(pokemonName);
       
-          // Check if the move data is already stored in the browser's storage
-          const storedMovesData = JSON.parse(localStorage.getItem(`moves`));
-          const moves = storedMovesData ? storedMovesData : await this._fetchPokemonMoves(pokemonData);
+          // Create a map of all the moves from the API
+          const allMoves = new Map(
+            JSON.parse(localStorage.getItem(`moves`))
+          );
+      
+          // Create an array of only the moves that the Pokémon learns
+          const moves = pokemonData.moves
+            .map((move) => move.move.name)
+            .map((moveName) => allMoves.get(moveName));
       
           // Create the pokemon object
           const pokemon = this._createPokemonObject(pokemonData, moves);
       
           // Store the data in the browser's storage
           this._storePokemonData(pokemonName, pokemon);
-          this._storePokemonMoves(moves);
       
           // Set the pokemon and error properties
           this.pokemon = pokemon;
@@ -117,6 +122,7 @@ class PokemonQueryComponent extends LitElement {
           this.pokemon = null;
         }
       }
+      
 
     _getPokemonName() {
         const input = this.shadowRoot.getElementById('pokemon-name-input');
@@ -157,9 +163,10 @@ class PokemonQueryComponent extends LitElement {
         localStorage.setItem(`pokemon:${pokemonName}`, JSON.stringify(pokemon));
       }      
 
-    _storePokemonMoves(moves) {
-        localStorage.setItem(`moves`, JSON.stringify(moves));
+      _storePokemonMoves(pokemonName, moves) {
+        localStorage.setItem(`moves:${pokemonName}`, JSON.stringify(moves));
       }
+      
 
     _getTypeColor(type) {
         switch (type) {
