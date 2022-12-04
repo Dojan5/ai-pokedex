@@ -8,177 +8,144 @@ class PokemonQueryComponent extends LitElement {
         };
     }
 
+    constructor() {
+        super();
+        this.pokemon = null;
+        this.error = null;
+    }
+
     render() {
         const { pokemon, error } = this;
         return html`
-          <input 
-          type="text" 
-          id="pokemon-name-input" 
-          @keydown=${(event) => {
-                if (event.key === 'Enter') {
-                    this._queryPokemon();
-                }
-            }}
-          />
-          <button @click=${this._queryPokemon}>Query Pokemon</button>
-          ${pokemon ? this._renderPokemonCard() : ''}
-          ${error ? this._renderErrorMessage() : ''}
-        `;
-    }
-
-    _renderPokemonCard() {
-        const { pokemon } = this;
-        return html`
-          <div class="pokemon-card">
-            <h3>${pokemon.name}</h3>
-            <div class="pokemon-type" style="background-color: ${this._getTypeColor(pokemon.type)}">
-              ${pokemon.type}
+      <input type="text" id="pokemon-name-input" @keyup=${this._onKeyUp} />
+      <button @click=${this._queryPokemon}>Query Pokemon</button>
+      ${pokemon
+                ? html`
+            <div class="pokemon-card">
+              <h3>${pokemon.name}</h3>
+              <div
+                class="pokemon-type"
+                style="background-color: ${this._getTypeColor(
+                    pokemon.type
+                )}"
+              >
+                ${pokemon.type}
+              </div>
+              <img src=${pokemon.imageUrl} alt=${pokemon.name} />
+              <h4>Moves:</h4>
+              ${this._renderMovesTable()}
             </div>
-            <img src=${pokemon.imageUrl} alt=${pokemon.name} />
-            <h4>Moves:</h4>
-            ${this._renderMovesTable()}
-          </div>
-        `;
-    }
-
-    _renderErrorMessage() {
-        const { error } = this;
-        console.log(error);
-        return html`
-          <div class="error-message" style="color: red">
-            ${error}
-          </div>
-        `;
+          `
+                : ''}
+      ${error
+                ? html`
+            <div class="error-message" style="color: red">
+              ${error}
+            </div>
+          `
+                : ''}
+    `;
     }
 
     _renderMovesTable() {
         const { pokemon } = this;
         return html`
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Type</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${pokemon.moves
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Learned at (lv)</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${pokemon.moves
                 .filter((move) => move.learnedByPokemon === pokemon.name)
                 .map(
-                  (move) => html`
-                    <tr>
-                      <td>${move.name}</td>
-                      <td>
-                        <div
-                          class="move-type"
-                          style="background-color: ${this._getTypeColor(
-                            move.type
-                          )}"
-                        >
-                          ${move.type}
-                        </div>
-                      </td>
-                    </tr>
-                  `
+                    (move) => html`
+                <tr>
+                  <td>${move.name}</td>
+                  <td>
+                    <div
+                      class="move-type"
+                      style="background-color: ${this._getTypeColor(
+                        move.type
+                    )}"
+                    >
+                      ${move.type}
+                    </div>
+                  </td>
+                  <td>${move.level_learned_at}</td>
+                  <td>${move.version_group_details[0].move_learn_method.name} (${move.version_group_details[0].version_group.name})</td>
+                </tr>
+              `
                 )}
-            </tbody>
-          </table>
-        `;
-      }
-      
+        </tbody>
+      </table>
+    `;
+    }
 
-
-      async _queryPokemon() {
+    async _queryPokemon() {
         const pokemonName = this._getPokemonName();
-      
+
         // Check if the data is already stored in the browser's storage
         const storedPokemonData = JSON.parse(localStorage.getItem(`pokemon:${pokemonName}`));
         let allMoves = [];
         if (storedPokemonData) {
-          allMoves = storedPokemonData.moves;
-          this.pokemon = storedPokemonData;
-          this.error = null;
-          return;
+            allMoves = storedPokemonData.moves;
+            this.pokemon = storedPokemonData;
+            this.error = null;
+            return;
         }
-      
+
         try {
-          // Make the API request if the data is not already stored
-          const pokemonData = await this._fetchPokemonData(pokemonName);
-      
-          // Convert the allMoves array to a Map object
-          const movesMap = new Map(
-            allMoves.map((move) => [move.name, { ...move, learnedByPokemon: pokemonData.name }])
-          );
-      
-          // Create the pokemon object
-          const pokemon = this._createPokemonObject(pokemonData, movesMap);
-      
-          // Store the pokemon data in the browser's storage
-          this._storePokemonData(pokemon);
-      
-          this.pokemon = pokemon;
-          this.error = null;
+            // Make the API request if the data is not already stored
+            const pokemonData = await this._fetchPokemonData(pokemonName);
+
+            // Convert the allMoves array to a Map object
+            const movesMap = new Map(
+                allMoves.map((move) => [move.name, { ...move, learnedByPokemon: pokemonData.name }])
+            );
+
+            // Create the pokemon object
+            const pokemon = this._createPokemonObject(pokemonData, movesMap);
+
+            // Store the pokemon data in the browser's storage
+            this._storePokemonData(pokemon);
+
+            this.pokemon = pokemon;
+            this.error = null;
         } catch (error) {
-          this.error = error.message;
-          this.pokemon = null;
+            this.error = error.message;
+            this.pokemon = null;
         }
-      }
-      
-      
-      
+    }
 
     _getPokemonName() {
-        const input = this.shadowRoot.getElementById('pokemon-name-input');
-        return input.value;
+        return this.shadowRoot.getElementById('pokemon-name-input').value;
     }
 
-    async _fetchPokemonData(pokemonName) {
-        const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${pokemonName}`);
-        return response.json();
-    }
-
-    async _fetchPokemonMoves(pokemonData) {
-        const moves = [];
-        for (const moveData of pokemonData.moves) {
-            const moveResponse = await fetch(moveData.move.url);
-            const move = await moveResponse.json();
-            moves.push({
-                name: move.name,
-                type: move.type.name,
-                level: moveData.version_group_details[0].level_learned_at,
-                details: `${move.generation.name} - ${moveData.version_group_details[0].move_learn_method.name}`,
-            });
-        }
-        return moves;
+    _fetchPokemonData(pokemonName) {
+        return fetch(`https://pokeapi.co/api/v2/pokemon/${pokemonName}`)
+            .then((response) => response.json());
     }
 
     _createPokemonObject(pokemonData, moves) {
-        // Create a map of all the moves from the API
-        const movesMap = new Map(
-          moves.map((move) => [move.name, { ...move, learnedByPokemon: pokemonData.name }])
-        );
-      
-        // Create the pokemon object
-        const pokemon = {
-          name: pokemonData.name,
-          type: pokemonData.types[0].type.name,
-          imageUrl: pokemonData.sprites.front_default,
-          moves: pokemonData.moves.map((move) => movesMap.get(move.move.name)),
+        return {
+            name: pokemonData.name,
+            type: pokemonData.types[0].type.name,
+            imageUrl: pokemonData.sprites.front_default,
+            moves: pokemonData.moves
+                .map((moveData) => moves.get(moveData.move.name))
+                .filter((move) => move !== undefined),
         };
-      
-        return pokemon;
-      }
-      
+    }
 
-    _storePokemonData(pokemonName, pokemon) {
-        // Store the Pokémon data in the browser's storage
-        localStorage.setItem(`pokemon:${pokemonName}`, JSON.stringify(pokemon));
-      }      
+    _storePokemonData(pokemon) {
+        localStorage.setItem(`pokemon:${pokemon.name}`, JSON.stringify(pokemon));
+    }
 
-      _storePokemonMoves(pokemonName, moves) {
-        localStorage.setItem(`moves:${pokemonName}`, JSON.stringify(moves));
-      }
-      
 
     _getTypeColor(type) {
         switch (type) {
@@ -219,7 +186,13 @@ class PokemonQueryComponent extends LitElement {
             case 'fairy':
                 return '#D685AD';
             default:
-                return '#FFFFFF';
+                return '#000000';
+        }
+    }
+
+    _onKeyUp(event) {
+        if (event.key === 'Enter') {
+            this._queryPokemon();
         }
     }
 }
