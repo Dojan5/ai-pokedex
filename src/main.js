@@ -103,10 +103,11 @@ class PokemonQueryComponent extends LitElement {
           // Make the API request if the data is not already stored
           const pokemonData = await this._fetchPokemonData(pokemonName);
       
-          if (allMoves.length === 0) {
-            // Fetch the moves from the API if allMoves is empty
-            allMoves = await this._fetchPokemonMoves(pokemonData);
-          }
+          // Fetch each move that the Pokémon learns
+          const movesPromises = pokemonData.moves.map((move) =>
+            this._fetchMoveData(move.move.name)
+          );
+          const moves = await Promise.all(movesPromises);
       
           // Convert the allMoves array to a Map object
           const movesMap = new Map(
@@ -126,6 +127,11 @@ class PokemonQueryComponent extends LitElement {
           this.pokemon = null;
         }
       }
+      
+      _fetchMoveData(moveName) {
+        return fetch(`https://pokeapi.co/api/v2/move/${moveName}`).then((response) => response.json());
+      }
+      
       
 
     _storePokemonData(pokemon) {
