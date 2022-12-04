@@ -88,39 +88,66 @@ class PokemonQueryComponent extends LitElement {
 
     async _queryPokemon() {
         const pokemonName = this._getPokemonName();
-
+      
         // Check if the data is already stored in the browser's storage
         const storedPokemonData = JSON.parse(localStorage.getItem(`pokemon:${pokemonName}`));
         let allMoves = [];
         if (storedPokemonData) {
-            allMoves = storedPokemonData.moves;
-            this.pokemon = storedPokemonData;
-            this.error = null;
-            return;
+          allMoves = storedPokemonData.moves;
+          this.pokemon = storedPokemonData;
+          this.error = null;
+          return;
         }
-
+      
         try {
-            // Make the API request if the data is not already stored
-            const pokemonData = await this._fetchPokemonData(pokemonName);
-
-            // Convert the allMoves array to a Map object
-            const movesMap = new Map(
-                allMoves.map((move) => [move.name, { ...move, learnedByPokemon: pokemonData.name }])
-            );
-
-            // Create the pokemon object
-            const pokemon = this._createPokemonObject(pokemonData, movesMap);
-
-            // Store the pokemon data in the browser's storage
-            this._storePokemonData(pokemon);
-
-            this.pokemon = pokemon;
-            this.error = null;
+          // Make the API request if the data is not already stored
+          const pokemonData = await this._fetchPokemonData(pokemonName);
+      
+          if (allMoves.length === 0) {
+            // Fetch the moves from the API if allMoves is empty
+            allMoves = await this._fetchPokemonMoves(pokemonData);
+          }
+      
+          // Convert the allMoves array to a Map object
+          const movesMap = new Map(
+            allMoves.map((move) => [move.name, { ...move, learnedByPokemon: pokemonData.name }])
+          );
+      
+          // Create the pokemon object
+          const pokemon = this._createPokemonObject(pokemonData, movesMap);
+      
+          // Store the pokemon data in the browser's storage
+          this._storePokemonData(pokemon);
+      
+          this.pokemon = pokemon;
+          this.error = null;
         } catch (error) {
-            this.error = error.message;
-            this.pokemon = null;
+          this.error = error.message;
+          this.pokemon = null;
         }
+      }
+      
+
+    _storePokemonData(pokemon) {
+        localStorage.setItem(`pokemon:${pokemon.name}`, JSON.stringify(pokemon));
     }
+
+    _createPokemonObject(pokemonData, movesMap) {
+        const pokemon = {
+            name: pokemonData.name,
+            type: pokemonData.types[0].type.name,
+            imageUrl: pokemonData.sprites.front_default,
+            moves: pokemonData.moves.map((move) => {
+                const moveData = movesMap.get(move.move.name);
+                return {
+                    ...moveData,
+                    learnedByPokemon: pokemonData.name,
+                };
+            }),
+        };
+        return pokemon;
+    }
+
 
     _getPokemonName() {
         return this.shadowRoot.getElementById('pokemon-name-input').value;
@@ -145,6 +172,26 @@ class PokemonQueryComponent extends LitElement {
     _storePokemonData(pokemon) {
         localStorage.setItem(`pokemon:${pokemon.name}`, JSON.stringify(pokemon));
     }
+
+    _fetchPokemonMoves(pokemonData) {
+        // Construct the URL to make the API request
+        const moveUrl = pokemonData.moves.map((move) => move.move.url).join(',');
+        const url = `https://pokeapi.co/api/v2/move/${moveUrl}`;
+      
+        // Make the API request
+        return fetch(url)
+          .then((response) => response.json())
+          .then((movesData) => {
+            // Map the data to the required format
+            return movesData.map((moveData) => ({
+              name: moveData.name,
+              type: moveData.type.name,
+              level_learned_at: moveData.level_learned_at,
+              version_group_details: moveData.version_group_details,
+            }));
+          });
+      }
+      
 
 
     _getTypeColor(type) {
