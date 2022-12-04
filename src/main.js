@@ -58,29 +58,33 @@ class PokemonQueryComponent extends LitElement {
               <tr>
                 <th>Name</th>
                 <th>Type</th>
-                <th>Learned at (lv)</th>
-                <th>Details</th>
               </tr>
             </thead>
             <tbody>
-              ${pokemon.moves.map(
-            (move) => html`
-                  <tr>
-                    <td>${move.name}</td>
-                    <td>
-                      <div class="move-type" style="background-color: ${this._getTypeColor(move.type)}">
-                        ${move.type}
-                      </div>
-                    </td>
-                    <td>${move.level}</td>
-                    <td>${move.details}</td>
-                  </tr>
-                `
-        )}
+              ${pokemon.moves
+                .filter((move) => move.learnedByPokemon === pokemon.name)
+                .map(
+                  (move) => html`
+                    <tr>
+                      <td>${move.name}</td>
+                      <td>
+                        <div
+                          class="move-type"
+                          style="background-color: ${this._getTypeColor(
+                            move.type
+                          )}"
+                        >
+                          ${move.type}
+                        </div>
+                      </td>
+                    </tr>
+                  `
+                )}
             </tbody>
           </table>
         `;
-    }
+      }
+      
 
 
     async _queryPokemon() {
@@ -150,13 +154,22 @@ class PokemonQueryComponent extends LitElement {
     }
 
     _createPokemonObject(pokemonData, moves) {
-        return {
-            name: pokemonData.name,
-            type: pokemonData.types[0].type.name,
-            imageUrl: pokemonData.sprites.front_default,
-            moves,
+        // Create a map of all the moves from the API
+        const movesMap = new Map(
+          moves.map((move) => [move.name, { ...move, learnedByPokemon: pokemonData.name }])
+        );
+      
+        // Create the pokemon object
+        const pokemon = {
+          name: pokemonData.name,
+          type: pokemonData.types[0].type.name,
+          imageUrl: pokemonData.sprites.front_default,
+          moves: pokemonData.moves.map((move) => movesMap.get(move.move.name)),
         };
-    }
+      
+        return pokemon;
+      }
+      
 
     _storePokemonData(pokemonName, pokemon) {
         // Store the Pokémon data in the browser's storage
