@@ -43,6 +43,7 @@ class PokemonQueryComponent extends LitElement {
 
     _renderErrorMessage() {
         const { error } = this;
+        console.log(error);
         return html`
           <div class="error-message" style="color: red">
             ${error}
@@ -87,12 +88,14 @@ class PokemonQueryComponent extends LitElement {
       
 
 
-    async _queryPokemon() {
+      async _queryPokemon() {
         const pokemonName = this._getPokemonName();
       
         // Check if the data is already stored in the browser's storage
         const storedPokemonData = JSON.parse(localStorage.getItem(`pokemon:${pokemonName}`));
+        let allMoves = [];
         if (storedPokemonData) {
+          allMoves = storedPokemonData.moves;
           this.pokemon = storedPokemonData;
           this.error = null;
           return;
@@ -102,23 +105,17 @@ class PokemonQueryComponent extends LitElement {
           // Make the API request if the data is not already stored
           const pokemonData = await this._fetchPokemonData(pokemonName);
       
-          // Create a map of all the moves from the API
-          const allMoves = new Map(
-            JSON.parse(localStorage.getItem(`moves`))
+          // Convert the allMoves array to a Map object
+          const movesMap = new Map(
+            allMoves.map((move) => [move.name, { ...move, learnedByPokemon: pokemonData.name }])
           );
       
-          // Create an array of only the moves that the Pokémon learns
-          const moves = pokemonData.moves
-            .map((move) => move.move.name)
-            .map((moveName) => allMoves.get(moveName));
-      
           // Create the pokemon object
-          const pokemon = this._createPokemonObject(pokemonData, moves);
+          const pokemon = this._createPokemonObject(pokemonData, movesMap);
       
-          // Store the data in the browser's storage
-          this._storePokemonData(pokemonName, pokemon);
+          // Store the pokemon data in the browser's storage
+          this._storePokemonData(pokemon);
       
-          // Set the pokemon and error properties
           this.pokemon = pokemon;
           this.error = null;
         } catch (error) {
@@ -126,6 +123,8 @@ class PokemonQueryComponent extends LitElement {
           this.pokemon = null;
         }
       }
+      
+      
       
 
     _getPokemonName() {
